@@ -1,0 +1,24 @@
+{
+  "name": "restbasic",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsnd --respawn --clear src/app.ts",
+    "build": "rimraf ./dist && tsc",
+    "start": "npm run build && node dist/app.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/express": "^5.0.2",
+    "@types/node": "^22.15.19",
+    "rimraf": "^6.0.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
