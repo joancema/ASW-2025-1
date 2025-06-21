@@ -1,0 +1,75 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type Pregunta {
+  id: ID!
+  texto: String
+}
+
+type Respuesta {
+  id: ID!
+  respuesta: Boolean!
+  pregunta: Pregunta!
+  ciudadano: Ciudadano!
+}
+
+type Ciudadano {
+  id: ID!
+  cedula: String!
+  nombre: String
+}
+
+type Query {
+  ciudadanos: [Ciudadano!]!
+  ciudadano(id: ID!): Ciudadano!
+  preguntas: [Pregunta!]!
+  pregunta(id: String!): Pregunta!
+  respuestas: [Respuesta!]!
+  respuesta(id: String!): Respuesta!
+}
+
+type Mutation {
+  createCiudadano(createCiudadanoInput: CreateCiudadanoInput!): Ciudadano!
+  updateCiudadano(updateCiudadanoInput: UpdateCiudadanoInput!): Ciudadano!
+  removeCiudadano(id: ID!): Ciudadano!
+  createPregunta(createPreguntaInput: CreatePreguntaInput!): Pregunta!
+  updatePregunta(updatePreguntaInput: UpdatePreguntaInput!): Pregunta!
+  removePregunta(id: String!): Pregunta!
+  createRespuesta(createRespuestaInput: CreateRespuestaInput!): Respuesta!
+  updateRespuesta(updateRespuestaInput: UpdateRespuestaInput!): Respuesta!
+  removeRespuesta(id: String!): Respuesta!
+}
+
+input CreateCiudadanoInput {
+  cedula: String!
+  nombre: String
+}
+
+input UpdateCiudadanoInput {
+  cedula: String
+  nombre: String
+  id: ID!
+}
+
+input CreatePreguntaInput {
+  texto: String
+}
+
+input UpdatePreguntaInput {
+  texto: String
+  id: ID!
+}
+
+input CreateRespuestaInput {
+  respuesta: Boolean!
+  ciudadanoId: String
+  preguntaId: String
+}
+
+input UpdateRespuestaInput {
+  respuesta: Boolean
+  ciudadanoId: String
+  preguntaId: String
+  id: ID!
+}
