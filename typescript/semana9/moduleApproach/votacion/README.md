@@ -41,10 +41,11 @@ npm install --save-dev @types/sqlite3
 npm install class-validator class-transformer
 ```
 
-### 2.3 Instalar mapped-types para DTOs
+### 2.3 Instalar mapped-types para DTOs (Solo si creas manualmente)
 ```bash
 npm install @nestjs/mapped-types
 ```
+> 📝 **Nota**: Si usas `nest generate resource` en el Paso 4.1, este paquete se instala automáticamente. Solo instálalo manualmente si creas los DTOs desde cero.
 
 ## 🗄️ Paso 3: Configurar TypeORM con SQLite
 
