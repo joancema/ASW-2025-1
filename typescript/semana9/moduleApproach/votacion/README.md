@@ -52,11 +52,11 @@ npm install @nestjs/mapped-types
 ```typescript
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
+    UsersModule,
     TypeOrmModule.forRoot({
       type: 'sqlite',
       database: 'database.sqlite',
@@ -64,8 +64,8 @@ import { AppService } from './app.service';
       autoLoadEntities: true,
     }),
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [],
+  providers: [],
 })
 export class AppModule {}
 ```
@@ -175,16 +175,18 @@ Si usaste `nest generate resource`, el módulo ya está configurado básicamente
 Modificar `src/users/users.module.ts`:
 ```typescript
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User])],
   controllers: [UsersController],
   providers: [UsersService],
-  exports: [UsersService], // Para usar en otros módulos
+  imports: [
+    TypeOrmModule.forFeature([User]),
+  ],
+  exports: [TypeOrmModule, UsersService] // Para usar en otros módulos
 })
 export class UsersModule {}
 ```
@@ -203,20 +205,20 @@ import { User } from './entities/user.entity';
 export class UsersService {
   constructor(
     @InjectRepository(User)
-    private usersRepository: Repository<User>,
+    private userRepository: Repository<User>,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
-    const user = this.usersRepository.create(createUserDto);
-    return await this.usersRepository.save(user);
+    const user = this.userRepository.create(createUserDto);
+    return await this.userRepository.save(user);
   }
 
   async findAll(): Promise<User[]> {
-    return await this.usersRepository.find();
+    return await this.userRepository.find();
   }
 
   async findOne(id: number): Promise<User> {
-    const user = await this.usersRepository.findOne({ where: { id } });
+    const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
     }
@@ -224,14 +226,15 @@ export class UsersService {
   }
 
   async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
-    await this.findOne(id); // Verificar que existe
-    await this.usersRepository.update(id, updateUserDto);
+    const user = await this.findOne(id); // Verificar que existe
+    await this.userRepository.update(id, updateUserDto);
     return this.findOne(id);
   }
 
-  async remove(id: number): Promise<void> {
-    await this.findOne(id); // Verificar que existe
-    await this.usersRepository.delete(id);
+  async remove(id: number): Promise<User> {
+    const user = await this.findOne(id); // Verificar que existe
+    user.status = false; // Soft delete
+    return await this.userRepository.save(user);
   }
 }
 ```
@@ -275,53 +278,57 @@ export class UsersController {
 }
 ```
 
-### 4.7 Importar el módulo Users en AppModule
-Modificar `src/app.module.ts`:
-```typescript
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { UsersModule } from './users/users.module';
+## 🔧 Paso 5: Configurar validaciones globales, CORS y prefijo de API
 
-@Module({
-  imports: [
-    UsersModule,
-    TypeOrmModule.forRoot({
-      type: 'sqlite',
-      database: 'database.sqlite',
-      synchronize: true,
-      autoLoadEntities: true,
-    }),
-  ],
-  controllers: [],
-  providers: [],
-})
-export class AppModule {}
-```
-
-## 🔧 Paso 5: Configurar validaciones globales
-
-### 5.1 Habilitar ValidationPipe globalmente
+### 5.1 Configurar main.ts con todas las características necesarias
 Modificar `src/main.ts`:
 ```typescript
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
+  // Habilitar CORS para permitir requests desde el frontend
+  app.enableCors();
+  
+  // Establecer prefijo global para todas las rutas (ej: localhost:3000/api/users)
+  app.setGlobalPrefix('api');
+  
   // Habilitar validaciones globales
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // Solo permite propiedades definidas en el DTO
+      forbidNonWhitelisted: true, // Lanza error si hay propiedades extra
+      transform: true, // Transforma automáticamente los tipos
+    }),
+  );
   
   await app.listen(3000);
   console.log('🚀 Aplicación corriendo en http://localhost:3000');
+  console.log('📋 API disponible en http://localhost:3000/api');
 }
 bootstrap();
 ```
+
+### 5.2 ¿Qué hace cada configuración?
+
+**CORS (Cross-Origin Resource Sharing)**:
+- Permite que aplicaciones web desde otros dominios hagan peticiones a tu API
+- Esencial para desarrollo frontend/backend separado
+- `app.enableCors()` habilita CORS para todos los orígenes
+
+**Global Prefix**:
+- Agrega un prefijo a todas las rutas de tu API
+- Con `app.setGlobalPrefix('api')`, todas las rutas tendrán `/api` al inicio
+- Ejemplo: `GET /users` se convierte en `GET /api/users`
+- Es una buena práctica para APIs
+
+**ValidationPipe Global**:
+- `whitelist: true`: Solo permite propiedades definidas en los DTOs
+- `forbidNonWhitelisted: true`: Rechaza requests con propiedades extra
+- `transform: true`: Convierte automáticamente strings a números, etc.
 
 ## 🚀 Paso 6: Ejecutar la aplicación
 
@@ -334,10 +341,18 @@ npm run start:dev
 - Se debe crear automáticamente el archivo `database.sqlite` en la raíz del proyecto
 - La aplicación debe iniciar sin errores
 
+### 6.3 Mensajes esperados en la consola
+```
+🚀 Aplicación corriendo en http://localhost:3000
+📋 API disponible en http://localhost:3000/api
+```
+
 ## 🧪 Paso 7: Probar las rutas (endpoints)
 
+> ⚠️ **IMPORTANTE**: Debido al prefijo global, todas las rutas ahora comienzan con `/api`
+
 ### 7.1 Crear un usuario
-**POST** `http://localhost:3000/users`
+**POST** `http://localhost:3000/api/users`
 ```json
 {
   "name": "Juan Pérez",
@@ -348,13 +363,13 @@ npm run start:dev
 ```
 
 ### 7.2 Obtener todos los usuarios
-**GET** `http://localhost:3000/users`
+**GET** `http://localhost:3000/api/users`
 
 ### 7.3 Obtener un usuario por ID
-**GET** `http://localhost:3000/users/1`
+**GET** `http://localhost:3000/api/users/1`
 
 ### 7.4 Actualizar un usuario
-**PATCH** `http://localhost:3000/users/1`
+**PATCH** `http://localhost:3000/api/users/1`
 ```json
 {
   "name": "Juan Carlos Pérez",
@@ -362,8 +377,9 @@ npm run start:dev
 }
 ```
 
-### 7.5 Eliminar un usuario
-**DELETE** `http://localhost:3000/users/1`
+### 7.5 Eliminar un usuario (soft delete)
+**DELETE** `http://localhost:3000/api/users/1`
+> Nota: Este endpoint cambia el `status` a `false` en lugar de eliminar físicamente el registro
 
 ## 🛠️ Herramientas recomendadas para pruebas
 
@@ -371,21 +387,110 @@ npm run start:dev
 1. Descargar Postman
 2. Crear una nueva colección
 3. Agregar requests para cada endpoint
+4. **Recordar usar el prefijo `/api` en todas las URLs**
 
 ### Opción 2: Thunder Client (VS Code)
 1. Instalar extensión Thunder Client en VS Code
 2. Crear requests directamente en el editor
+3. **Recordar usar el prefijo `/api` en todas las URLs**
 
 ### Opción 3: cURL (Terminal)
 ```bash
 # Crear usuario
-curl -X POST http://localhost:3000/users \
+curl -X POST http://localhost:3000/api/users \
   -H "Content-Type: application/json" \
   -d '{"name":"Ana García","email":"ana@example.com","password":"123456","age":30}'
 
 # Obtener usuarios
-curl http://localhost:3000/users
+curl http://localhost:3000/api/users
+
+# Obtener usuario por ID
+curl http://localhost:3000/api/users/1
+
+# Actualizar usuario
+curl -X PATCH http://localhost:3000/api/users/1 \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Ana María García"}'
+
+# Eliminar usuario (soft delete)
+curl -X DELETE http://localhost:3000/api/users/1
 ```
+
+## 🔧 Paso 8: Configuraciones adicionales (Opcional)
+
+### 8.1 Configurar CORS con más opciones
+Si necesitas configuración más específica de CORS:
+```typescript
+// En main.ts
+app.enableCors({
+  origin: ['http://localhost:3000', 'http://localhost:4200'], // Solo estos orígenes
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  credentials: true,
+});
+```
+
+### 8.2 Configurar puerto desde variables de entorno
+```typescript
+// En main.ts
+const port = process.env.PORT || 3000;
+await app.listen(port);
+console.log(`🚀 Aplicación corriendo en http://localhost:${port}`);
+```
+
+### 8.3 Agregar manejo de errores global
+Crear `src/common/filters/http-exception.filter.ts`:
+```typescript
+import { ExceptionFilter, Catch, ArgumentsHost, HttpException } from '@nestjs/common';
+import { Request, Response } from 'express';
+
+@Catch(HttpException)
+export class HttpExceptionFilter implements ExceptionFilter {
+  catch(exception: HttpException, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request>();
+    const status = exception.getStatus();
+
+    response
+      .status(status)
+      .json({
+        statusCode: status,
+        timestamp: new Date().toISOString(),
+        path: request.url,
+        message: exception.message,
+      });
+  }
+}
+```
+
+Y aplicarlo globalmente en `main.ts`:
+```typescript
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+
+// En bootstrap()
+app.useGlobalFilters(new HttpExceptionFilter());
+```
+
+## ⚠️ Errores comunes y soluciones
+
+### Error: "Cannot find module 'sqlite3'"
+**Solución**: Instalar sqlite3
+```bash
+npm install sqlite3
+npm install --save-dev @types/sqlite3
+```
+
+### Error: Validación no funciona
+**Solución**: Verificar que ValidationPipe esté configurado globalmente en `main.ts`
+
+### Error: CORS
+**Solución**: Verificar que `app.enableCors()` esté en `main.ts`
+
+### Error: Rutas no encontradas
+**Solución**: Recordar usar el prefijo `/api` en todas las URLs
+
+### Error: "Cannot read property 'length' of undefined"
+**Solución**: Verificar que los DTOs tengan las validaciones correctas
 
 ## 📚 Conceptos clave aprendidos
 
@@ -398,6 +503,9 @@ curl http://localhost:3000/users
 7. **Validaciones**: Uso de class-validator para validar datos
 8. **TypeORM**: ORM para manejar base de datos
 9. **CLI de NestJS**: Generación automática de código con `nest generate`
+10. **CORS**: Configuración para permitir requests de otros dominios
+11. **Global Prefix**: Prefijo para todas las rutas de la API
+12. **Soft Delete**: Eliminación lógica sin borrar físicamente los datos
 
 ## 🔧 Comandos útiles del CLI de NestJS
 
@@ -433,6 +541,8 @@ nest g service <nombre>
 6. **Documentación**: Integrar Swagger/OpenAPI
 7. **Testing**: Escribir tests unitarios y e2e
 8. **Docker**: Containerizar la aplicación
+9. **Variables de entorno**: Configuración con archivos .env
+10. **Logging**: Implementar sistema de logs
 
 ## 📝 Estructura final del proyecto
 
@@ -455,4 +565,14 @@ votacion/
 └── README.md
 ```
 
-¡Felicidades! 🎉 Has creado tu primera aplicación NestJS con TypeORM y SQLite.
+## 📋 URLs finales disponibles
+
+Con la configuración actual, tu API tendrá estas URLs:
+
+- **POST** `http://localhost:3000/api/users` - Crear usuario
+- **GET** `http://localhost:3000/api/users` - Obtener todos los usuarios
+- **GET** `http://localhost:3000/api/users/:id` - Obtener usuario por ID
+- **PATCH** `http://localhost:3000/api/users/:id` - Actualizar usuario
+- **DELETE** `http://localhost:3000/api/users/:id` - Eliminar usuario (soft delete)
+
+¡Felicidades! 🎉 Has creado tu primera aplicación NestJS completa con TypeORM, SQLite, validaciones, CORS y prefijo de API.
