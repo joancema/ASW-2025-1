@@ -1,0 +1,104 @@
+version: '3.7'
+
+services:
+  app:
+    image: joancema/app_vuelos:v2
+    container_name: app_vuelos
+    env_file: .env.example
+    ports:
+      - 80:3000
+    depends_on:
+      - mongodb1
+      - rabbitmq
+    restart: always
+    networks:
+      - ms_nestjs
+
+  microservice-flights:
+    image: joancema/microservice-flights:v2
+    container_name: microservice-flights
+    env_file: .env.example
+    depends_on:
+      - mongodb2
+      - rabbitmq
+    restart: always
+    networks:
+      - ms_nestjs
+
+  microservice-passengers:
+    image: joancema/microservice-passengers:v2
+    container_name: microservice-passengers
+    env_file: .env.example
+    depends_on:
+      - mongodb3
+      - rabbitmq
+    restart: always
+    networks:
+      - ms_nestjs
+
+  microservice-users:
+    image: joancema/microservice-users:v2
+    container_name: microservice-users
+    env_file: .env.example
+    depends_on:
+      - mongodb
+      - rabbitmq
+    restart: always
+    networks:
+      - ms_nestjs
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    expose:
+      - 5672
+      - 15672
+    restart: always
+    networks:
+      - ms_nestjs
+
+  mongodb1:
+    image: mongo:latest
+    container_name: mongodb1
+    restart: always
+    environment:
+      - MONGO_DATA_DIR=/data/db
+      - MONGO_LOG_DIR=/dev/null
+    volumes:
+      - mongodb1:/data/db
+    expose:
+      - 27017
+    networks:
+      - ms_nestjs
+  mongodb2:
+    image: mongo:latest
+    container_name: mongodb2
+    restart: always
+    environment:
+      - MONGO_DATA_DIR=/data/db
+      - MONGO_LOG_DIR=/dev/null
+    volumes:
+      - mongodb2:/data/db
+    expose:
+      - 27017
+    networks:
+      - ms_nestjs
+  mongodb3:
+    image: mongo:latest
+    container_name: mongodb3
+    restart: always
+    environment:
+      - MONGO_DATA_DIR=/data/db
+      - MONGO_LOG_DIR=/dev/null
+    volumes:
+      - mongodb3:/data/db
+    expose:
+      - 27017
+    networks:
+      - ms_nestjs
+
+volumes:
+  mongodb:
+
+networks:
+  ms_nestjs:
