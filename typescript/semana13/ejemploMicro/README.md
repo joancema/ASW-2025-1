@@ -50,6 +50,13 @@ npm install @nestjs/microservices dotenv joi
 npm install --save-dev @types/node
 ```
 
+**¿Por qué estas dependencias?**
+
+- **`@nestjs/microservices`**: Proporciona funcionalidades para crear microservicios y comunicación entre ellos
+- **`dotenv`**: Carga variables de entorno desde archivos `.env`
+- **`joi`**: Biblioteca para validar esquemas de configuración
+- **`@types/node`**: Tipos de TypeScript para Node.js (desarrollo)
+
 #### 2.2 Configurar Variables de Entorno
 
 Crear archivo `.env` en la raíz del proyecto `ciudadano`:
@@ -57,6 +64,13 @@ Crear archivo `.env` en la raíz del proyecto `ciudadano`:
 ```env
 NATS_SERVERS=nats://localhost:4222
 ```
+
+**¿Por qué usar variables de entorno?**
+
+- **Separación de configuración**: Evita hardcodear valores en el código
+- **Diferentes entornos**: Permite configuraciones distintas para desarrollo, producción, etc.
+- **Seguridad**: No se suben al repositorio (incluir en .gitignore)
+- **Flexibilidad**: Fácil cambio de configuración sin modificar código
 
 #### 2.3 Crear la Configuración de Variables de Entorno
 
@@ -90,6 +104,14 @@ export const envs = {
 };
 ```
 
+**¿Por qué validar las variables de entorno?**
+
+- **`dotenv/config`**: Carga automáticamente las variables del archivo `.env`
+- **`joi`**: Valida que las variables requeridas existan y tengan el formato correcto
+- **`split(',')`**: Permite múltiples servidores NATS separados por comas
+- **Validación temprana**: Falla rápido si la configuración es incorrecta
+- **Type Safety**: TypeScript conoce los tipos de las variables validadas
+
 #### 2.4 Crear la Entidad Ciudadano
 
 Crear `src/ciudadanos/entities/ciudadano.entity.ts`:
@@ -103,6 +125,14 @@ export class Ciudadano {
   activo: boolean;
 }
 ```
+
+**¿Por qué usar entidades?**
+
+- **Modelo de datos**: Define la estructura de los datos del dominio
+- **Type Safety**: TypeScript puede verificar tipos en tiempo de compilación
+- **Documentación**: Sirve como documentación del modelo de datos
+- **Consistencia**: Asegura que todos los servicios usen la misma estructura
+- **Separación de responsabilidades**: Separa la lógica de negocio de la estructura de datos
 
 #### 2.5 Crear DTOs
 
@@ -132,6 +162,15 @@ import { CreateCiudadanoDto } from './create-ciudadano.dto';
 
 export class UpdateCiudadanoDto extends PartialType(CreateCiudadanoDto) {}
 ```
+
+**¿Por qué usar DTOs?**
+
+- **`@IsString()`, `@IsEmail()`, `@IsNumber()`**: Decoradores de validación automática
+- **`@Min(0)`**: Valida que la edad sea mayor o igual a 0
+- **Validación automática**: NestJS valida automáticamente los datos entrantes
+- **`PartialType()`**: Hace todas las propiedades opcionales para actualizaciones
+- **Seguridad**: Previene datos maliciosos o incorrectos
+- **Documentación**: Los DTOs sirven como contrato de la API
 
 #### 2.6 Crear el Servicio de Ciudadanos
 
@@ -194,6 +233,15 @@ export class CiudadanosService {
 }
 ```
 
+**¿Por qué este servicio contiene la lógica de negocio?**
+
+- **`@Injectable()`**: Permite que NestJS inyecte este servicio en otros componentes
+- **Lógica de negocio**: Contiene todas las operaciones CRUD para ciudadanos
+- **Datos en memoria**: Usa un array para simular una base de datos (en producción usarías una DB real)
+- **ID automático**: Genera IDs incrementales para nuevos ciudadanos
+- **`activo: true`**: Establece valores por defecto para nuevos registros
+- **Operaciones CRUD**: Create, Read, Update, Delete completos
+
 #### 2.7 Crear el Controlador de Ciudadanos
 
 Crear `src/ciudadanos/ciudadanos.controller.ts`:
@@ -236,6 +284,15 @@ export class CiudadanosController {
 }
 ```
 
+**¿Por qué este controlador usa MessagePatterns?**
+
+- **`@MessagePattern()`**: Define patrones de mensaje que el microservicio escuchará
+- **`@Payload()`**: Extrae los datos del mensaje recibido
+- **Comunicación asíncrona**: Los microservicios se comunican por mensajes, no HTTP
+- **Patrones únicos**: Cada operación tiene un patrón específico ('createCiudadano', 'findAllCiudadanos', etc.)
+- **Sin rutas HTTP**: Los microservicios no exponen endpoints HTTP directamente
+- **Desacoplamiento**: El gateway y microservicio se comunican sin conocer detalles de implementación
+
 #### 2.8 Crear el Módulo de Ciudadanos
 
 Crear `src/ciudadanos/ciudadanos.module.ts`:
@@ -252,6 +309,15 @@ import { CiudadanosController } from './ciudadanos.controller';
 export class CiudadanosModule {}
 ```
 
+**¿Por qué usar módulos?**
+
+- **`@Module()`**: Define un módulo de NestJS que agrupa funcionalidades relacionadas
+- **`controllers`**: Lista los controladores que manejan las peticiones
+- **`providers`**: Lista los servicios que contienen la lógica de negocio
+- **Inyección de dependencias**: NestJS inyecta automáticamente el servicio en el controlador
+- **Organización**: Agrupa código relacionado en unidades lógicas
+- **Reutilización**: Los módulos pueden ser importados en otros módulos
+
 #### 2.9 Configurar el Módulo Principal
 
 Actualizar `src/app.module.ts`:
@@ -267,6 +333,14 @@ import { CiudadanosModule } from './ciudadanos/ciudadanos.module';
 })
 export class AppModule {}
 ```
+
+**¿Por qué este es el módulo principal?**
+
+- **`imports`**: Importa otros módulos que necesita la aplicación
+- **Módulo raíz**: Es el punto de entrada principal de la aplicación
+- **Configuración global**: Aquí se configuran todos los módulos de la aplicación
+- **Sin controladores directos**: Los controladores están en módulos específicos
+- **Sin providers directos**: Los servicios están en módulos específicos
 
 #### 2.10 Configurar el Punto de Entrada
 
@@ -303,6 +377,15 @@ async function bootstrap() {
 bootstrap();
 ```
 
+**¿Por qué esta configuración?**
+
+- **`createMicroservice()`**: Crea una aplicación de microservicio en lugar de una aplicación HTTP tradicional
+- **`Transport.NATS`**: Define NATS como el protocolo de comunicación entre microservicios
+- **`maxReconnectAttempts: -1`**: Permite reconexiones infinitas si se pierde la conexión con NATS
+- **`ValidationPipe`**: Valida automáticamente todos los datos entrantes según los DTOs
+- **`whitelist: true`**: Solo permite propiedades definidas en los DTOs
+- **`forbidNonWhitelisted: true`**: Rechaza propiedades no definidas en los DTOs
+
 ### Paso 3: Configurar el API Gateway
 
 #### 3.1 Instalar Dependencias
@@ -313,6 +396,13 @@ npm install @nestjs/microservices dotenv joi
 npm install --save-dev @types/node
 ```
 
+**¿Por qué las mismas dependencias que el microservicio?**
+
+- **`@nestjs/microservices`**: Necesario para comunicarse con microservicios
+- **`dotenv`**: Para cargar variables de entorno del gateway
+- **`joi`**: Para validar la configuración del gateway
+- **Consistencia**: Ambos proyectos necesitan las mismas herramientas de comunicación
+
 #### 3.2 Configurar Variables de Entorno
 
 Crear archivo `.env` en la raíz del proyecto `gateway`:
@@ -321,6 +411,13 @@ Crear archivo `.env` en la raíz del proyecto `gateway`:
 PORT=3000
 NATS_SERVERS=nats://localhost:4222
 ```
+
+**¿Por qué el gateway necesita PORT?**
+
+- **`PORT=3000`**: Puerto donde el gateway escuchará peticiones HTTP
+- **`NATS_SERVERS`**: Misma configuración que el microservicio para comunicación
+- **Servidor HTTP**: El gateway expone una API REST en el puerto especificado
+- **Punto de entrada**: Los clientes se conectan al gateway, no directamente a los microservicios
 
 #### 3.3 Crear la Configuración de Variables de Entorno
 
@@ -357,6 +454,13 @@ export const envs = {
 };
 ```
 
+**¿Por qué validar PORT además de NATS_SERVERS?**
+
+- **`PORT`**: Valida que el puerto sea un número válido
+- **Validación temprana**: Falla si el puerto no está configurado correctamente
+- **Type Safety**: TypeScript conoce que PORT es un número
+- **Configuración dual**: El gateway necesita tanto configuración HTTP como de microservicios
+
 #### 3.4 Crear el Módulo de Transporte NATS
 
 Crear `src/transports/nats.module.ts`:
@@ -384,9 +488,23 @@ import { envs } from '../config';
 export class NatsModule {}
 ```
 
+**¿Por qué este módulo?**
+
+- **`ClientsModule.register()`**: Registra un cliente NATS que puede enviar mensajes a microservicios
+- **`name: 'NATS_SERVICE'`**: Identificador único para inyectar este cliente en otros servicios
+- **`transport: Transport.NATS`**: Especifica que usaremos NATS como protocolo
+- **`exports: [ClientsModule]`**: Hace que el cliente NATS esté disponible para otros módulos
+
 #### 3.5 Crear DTOs y Entidades (igual que en el microservicio)
 
 Copiar los archivos de `dto/` y `entities/` del microservicio al gateway.
+
+**¿Por qué necesitamos los mismos DTOs en ambos proyectos?**
+
+- **Consistencia**: Los DTOs deben ser idénticos para que la validación funcione correctamente
+- **Validación**: El gateway valida los datos antes de enviarlos al microservicio
+- **Type Safety**: TypeScript necesita conocer la estructura de los datos en ambos lados
+- **Documentación**: Los DTOs sirven como contrato entre el gateway y el microservicio
 
 #### 3.6 Crear el Servicio de Ciudadanos en el Gateway
 
@@ -425,6 +543,14 @@ export class CiudadanosService {
   }
 }
 ```
+
+**¿Por qué este servicio es diferente al del microservicio?**
+
+- **`@Inject('NATS_SERVICE')`**: Inyecta el cliente NATS registrado en el módulo de transporte
+- **`ClientProxy`**: Interfaz para enviar mensajes a microservicios
+- **`natsClient.send()`**: Envía mensajes a través de NATS usando patrones específicos
+- **Patrones de mensaje**: Cada método usa un patrón diferente que coincide con el microservicio
+- **Sin lógica de negocio**: Solo actúa como proxy hacia el microservicio real
 
 #### 3.7 Crear el Controlador de Ciudadanos en el Gateway
 
@@ -467,6 +593,15 @@ export class CiudadanosController {
 }
 ```
 
+**¿Por qué este controlador usa decoradores HTTP?**
+
+- **`@Controller('ciudadanos')`**: Define la ruta base para todos los endpoints
+- **`@Post()`, `@Get()`, `@Patch()`, `@Delete()`**: Decoradores HTTP estándar para REST APIs
+- **`@Body()`**: Extrae el cuerpo de la petición HTTP
+- **`@Param()`**: Extrae parámetros de la URL
+- **`+id`**: Convierte el string del parámetro a número
+- **REST API**: Expone una interfaz HTTP estándar para los clientes
+
 #### 3.8 Crear el Módulo de Ciudadanos en el Gateway
 
 Crear `src/ciudadanos/ciudadanos.module.ts`:
@@ -482,6 +617,13 @@ import { CiudadanosController } from './ciudadanos.controller';
 })
 export class CiudadanosModule {}
 ```
+
+**¿Por qué el mismo módulo que en el microservicio?**
+
+- **Estructura similar**: Misma organización de código para consistencia
+- **Inyección de dependencias**: NestJS inyecta el servicio en el controlador
+- **Separación de responsabilidades**: Controlador maneja HTTP, servicio maneja comunicación con microservicios
+- **Reutilización**: La estructura modular facilita el mantenimiento
 
 #### 3.9 Configurar el Módulo Principal del Gateway
 
@@ -500,13 +642,65 @@ import { NatsModule } from './transports/nats.module';
 export class AppModule {}
 ```
 
-#### 3.10 Configurar el Punto de Entrada del Gateway
+**¿Por qué importar NatsModule además de CiudadanosModule?**
+
+- **`NatsModule`**: Proporciona el cliente NATS necesario para comunicación
+- **`CiudadanosModule`**: Contiene los controladores y servicios del dominio
+- **Dependencias**: El servicio de ciudadanos necesita el cliente NATS
+- **Configuración completa**: Ambos módulos son necesarios para que el gateway funcione
+
+#### 3.10 Crear el Filtro de Excepciones RPC
+
+Crear `src/common/exceptions/rpc-custom-exceptions.filter.ts`:
+
+```typescript
+import { Catch, ExceptionFilter, ArgumentsHost } from '@nestjs/common';
+import { RpcException } from '@nestjs/microservices';
+
+@Catch(RpcException)
+export class RpcCustomExceptionFilter implements ExceptionFilter {
+    catch(exception: RpcException, host: ArgumentsHost) {
+        const ctx = host.switchToHttp();
+        const response = ctx.getResponse();
+        const rpcError = exception.getError();
+
+        if (rpcError.toString().includes('Empty response')) {
+            response.status(500).json({
+                statusCode: 500,
+                message: rpcError.toString().substring(0, rpcError.toString().indexOf('(') - 1),
+            });
+            return;
+        }
+
+        if (typeof rpcError === 'object' && 'status' in rpcError && 'message' in rpcError) {
+            const status = isNaN(+rpcError.status) ? 400 : +rpcError.status;
+            response.status(status).json(rpcError);
+        }
+        
+        response.status(400).json({
+            statusCode: 400,
+            message: rpcError,
+        });
+    }
+}
+```
+
+**¿Por qué necesitamos este filtro?**
+
+- **`@Catch(RpcException)`**: Captura específicamente excepciones de microservicios
+- **Manejo de errores RPC**: Convierte errores de microservicios en respuestas HTTP apropiadas
+- **"Empty response"**: Maneja casos donde el microservicio no responde
+- **Códigos de estado HTTP**: Mapea errores RPC a códigos HTTP estándar
+- **Respuestas consistentes**: Asegura que todos los errores tengan el mismo formato
+
+#### 3.11 Configurar el Punto de Entrada del Gateway
 
 Actualizar `src/main.ts`:
 
 ```typescript
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { RpcCustomExceptionFilter } from './common/exceptions/rpc-custom-exceptions.filter';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { envs } from './config';
 
@@ -522,11 +716,21 @@ async function bootstrap() {
     })
   );
 
+  app.useGlobalFilters(new RpcCustomExceptionFilter());
+
   await app.listen(envs.PORT);
   logger.log(`Gateway is running on port ${envs.PORT}`);
 }
 bootstrap();
 ```
+
+**¿Por qué esta configuración del gateway?**
+
+- **`create()`**: Crea una aplicación HTTP tradicional (no microservicio)
+- **`setGlobalPrefix('api')`**: Agrega `/api` a todas las rutas
+- **`ValidationPipe`**: Valida datos entrantes según los DTOs
+- **`useGlobalFilters()`**: Aplica el filtro de excepciones RPC globalmente
+- **`listen(envs.PORT)`**: Escucha en el puerto configurado para peticiones HTTP
 
 ## 🚀 Ejecutar el Proyecto
 
@@ -583,6 +787,15 @@ curl http://localhost:3000/api/ciudadanos/1
 4. **Microservicio Ciudadanos** → **NATS** (respuesta)
 5. **NATS** → **API Gateway** (respuesta)
 6. **API Gateway** → **Cliente** (HTTP/REST)
+
+**¿Por qué este flujo de comunicación?**
+
+- **Punto único de entrada**: Los clientes solo conocen el gateway, no los microservicios
+- **Desacoplamiento**: Los microservicios no necesitan exponer APIs HTTP
+- **Escalabilidad**: Puedes escalar microservicios independientemente
+- **Seguridad**: El gateway puede implementar autenticación y autorización
+- **Transformación**: El gateway puede transformar datos entre diferentes formatos
+- **Resiliencia**: Si un microservicio falla, el gateway puede manejar el error
 
 ## 📚 Conceptos Clave Explicados
 
